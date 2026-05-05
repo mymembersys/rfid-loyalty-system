@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, useEffect, useRef, useState } from "react";
 import { Navigate } from "react-router-dom";
-import { apiFetch } from "../api/client";
+import { API_BASE, apiFetch } from "../api/client";
 import { useAuth } from "../api/auth";
 import { loadBranding } from "../branding";
 import { useBranding } from "../useBranding";
@@ -110,7 +110,7 @@ export function Settings() {
     try {
       const fd = new FormData();
       fd.append("logo", file);
-      const r = await fetch("/api/v1/settings/logo", {
+      const r = await fetch(`${API_BASE}/api/v1/settings/logo`, {
         method: "POST",
         headers: { authorization: `Bearer ${token}` },
         body: fd,
