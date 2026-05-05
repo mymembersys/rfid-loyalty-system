@@ -7,6 +7,6 @@
     { "source": "/(.*)", "destination": "/api" }
   ],
   "crons": [
-    { "path": "/api/cron/expire-vouchers", "schedule": "*/5 * * * *" }
+    { "path": "/api/cron/expire-vouchers", "schedule": "0 0 * * *" }
   ]
 }
