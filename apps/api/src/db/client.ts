@@ -1,4 +1,4 @@
-import { Pool, PoolConfig } from "pg";
+import { Pool, PoolConfig, QueryResultRow } from "pg";
 import { env } from "../config/env";
 
 const isProd       = env.nodeEnv === "production";
@@ -22,7 +22,7 @@ pool.on("error", (err) => {
   console.error("Unexpected PG client error", err);
 });
 
-export async function query<T = any>(text: string, params?: any[]) {
+export async function query<T extends QueryResultRow = any>(text: string, params?: any[]) {
   const start = Date.now();
   const res = await pool.query<T>(text, params);
   if (env.nodeEnv === "development") {

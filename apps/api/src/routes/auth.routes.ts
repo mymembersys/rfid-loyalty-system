@@ -33,7 +33,7 @@ authRoutes.post("/login", async (req: Request, res: Response, next: NextFunction
     const token = jwt.sign(
       { sub: user.id, email: user.email, role: user.role, branch_id: user.branch_id },
       env.jwtSecret,
-      { expiresIn: env.jwtExpiresIn }
+      { expiresIn: env.jwtExpiresIn } as jwt.SignOptions
     );
 
     await query(`UPDATE users SET last_login_at = now() WHERE id = $1`, [user.id]);
