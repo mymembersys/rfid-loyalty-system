@@ -1,0 +1,20 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rfid-loyalty-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rfid_user
+      POSTGRES_PASSWORD: rfid_pass
+      POSTGRES_DB: rfid_loyalty
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./.pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rfid_user -d rfid_loyalty"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

@@ -1,0 +1,21 @@
+{
+  "name": "rfid-loyalty-system",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Multi-branch RFID-based loyalty card system for wellness networks (diagnostic clinics, psychological clinics, gyms).",
+  "workspaces": [
+    "apps/api",
+    "apps/admin",
+    "apps/terminal"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace apps/api",
+    "dev:admin": "npm run dev --workspace apps/admin",
+    "dev:terminal": "npm run dev --workspace apps/terminal",
+    "build": "npm run build --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}
