@@ -3,6 +3,7 @@ import { z } from "zod";
 import { query } from "../db/client";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { HttpError } from "../middleware/error";
+import { assertActiveServiceLine } from "../lib/serviceLineCheck";
 
 export const stampRuleRoutes = Router();
 stampRuleRoutes.use(requireAuth);
@@ -23,7 +24,7 @@ stampRuleRoutes.get("/", async (req, res, next) => {
 });
 
 const baseSchema = z.object({
-  service_line: z.enum(["diagnostic", "psychological", "gym"]),
+  service_line: z.string().min(2),
   branch_id: z.string().uuid().nullable().optional(),
   stamps_required: z.number().int().positive(),
   cooldown_minutes: z.number().int().nonnegative().default(720),
@@ -33,9 +34,10 @@ const baseSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-stampRuleRoutes.post("/", requireRole("admin"), async (req, res, next) => {
+stampRuleRoutes.post("/", requireRole("admin", "manager"), async (req, res, next) => {
   try {
     const b = baseSchema.parse(req.body);
+    await assertActiveServiceLine(b.service_line);
     const r = await query(
       `INSERT INTO stamp_rules
          (service_line, branch_id, stamps_required, cooldown_minutes, cross_service_eligible, active_from, active_to, is_active)
@@ -52,9 +54,10 @@ stampRuleRoutes.post("/", requireRole("admin"), async (req, res, next) => {
 
 const updateSchema = baseSchema.partial();
 
-stampRuleRoutes.patch("/:id", requireRole("admin"), async (req, res, next) => {
+stampRuleRoutes.patch("/:id", requireRole("admin", "manager"), async (req, res, next) => {
   try {
     const b = updateSchema.parse(req.body);
+    if (b.service_line) await assertActiveServiceLine(b.service_line);
     const fields = Object.keys(b) as (keyof typeof b)[];
     if (fields.length === 0) {
       const r = await query(`SELECT * FROM stamp_rules WHERE id = $1`, [req.params.id]);
@@ -72,7 +75,7 @@ stampRuleRoutes.patch("/:id", requireRole("admin"), async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-stampRuleRoutes.delete("/:id", requireRole("admin"), async (req, res, next) => {
+stampRuleRoutes.delete("/:id", requireRole("admin", "manager"), async (req, res, next) => {
   try {
     const r = await query(
       `UPDATE stamp_rules SET is_active = FALSE WHERE id = $1 RETURNING id`,

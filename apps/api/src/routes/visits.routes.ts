@@ -5,6 +5,7 @@ import { recordAudit } from "../db/audit";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { HttpError } from "../middleware/error";
 import { signBalanceToken } from "../lib/balanceToken";
+import { assertActiveServiceLine } from "../lib/serviceLineCheck";
 
 export const visitRoutes = Router();
 visitRoutes.use(requireAuth);
@@ -12,7 +13,7 @@ visitRoutes.use(requireAuth);
 const checkInSchema = z.object({
   card_uid: z.string().min(4),
   branch_id: z.string().uuid(),
-  service_line: z.enum(["diagnostic", "psychological", "gym"]),
+  service_line: z.string().min(2),
   sub_service: z.string().optional(),
 });
 
@@ -25,6 +26,7 @@ const checkInSchema = z.object({
 visitRoutes.post("/check-in", requireRole("admin", "manager", "frontdesk"), async (req, res, next) => {
   try {
     const body = checkInSchema.parse(req.body);
+    await assertActiveServiceLine(body.service_line);
 
     const cardR = await query(
       `SELECT c.id AS card_id, c.status AS card_status, c.member_id,

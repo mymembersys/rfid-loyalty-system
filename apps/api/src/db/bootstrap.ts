@@ -35,4 +35,25 @@ export async function bootstrapDb(): Promise<void> {
     )
   `);
   await query(`CREATE INDEX IF NOT EXISTS idx_nfc_links_member ON nfc_links(member_id, created_at DESC)`);
+
+  // Service-line presentation metadata (paired with the `service_line` enum)
+  await query(`
+    CREATE TABLE IF NOT EXISTS service_lines (
+      code         service_line PRIMARY KEY,
+      name         TEXT NOT NULL,
+      description  TEXT,
+      color        TEXT NOT NULL DEFAULT '#3b5bdb',
+      sort_order   INT  NOT NULL DEFAULT 0,
+      is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+  await query(`
+    INSERT INTO service_lines (code, name, sort_order) VALUES
+      ('diagnostic',    'Diagnostic',    0),
+      ('psychological', 'Psychological', 1),
+      ('gym',           'Gym',           2)
+    ON CONFLICT (code) DO NOTHING
+  `);
 }

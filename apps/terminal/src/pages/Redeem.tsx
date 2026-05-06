@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { TerminalConfig } from "../types";
 import { useBranding } from "../useBranding";
+import { useServiceLines } from "../useServiceLines";
 import { PrintableVoucher } from "../components/PrintableVoucher";
 
 type CardLookup = {
@@ -25,6 +26,8 @@ type Step = "tap" | "select" | "issued";
 
 export function Redeem({ config }: { config: TerminalConfig }) {
   const brand = useBranding();
+  const serviceLines = useServiceLines(config.staff_token);
+  const slName = (code: string | null) => code ? (serviceLines.find(s => s.code === code)?.name ?? code) : null;
   const [step, setStep] = useState<Step>("tap");
   const [uid, setUid] = useState("");
   const [busy, setBusy] = useState(false);
@@ -175,7 +178,7 @@ export function Redeem({ config }: { config: TerminalConfig }) {
             <span className="muted">No stamps yet.</span>
           ) : balances.map(b => (
             <div key={b.service_line} className="bal-pill">
-              <span className="muted small">{b.service_line}</span>
+              <span className="muted small">{slName(b.service_line)}</span>
               <b>{b.stamps_balance}</b>
             </div>
           ))}
@@ -198,7 +201,7 @@ export function Redeem({ config }: { config: TerminalConfig }) {
                     <span className="cost">{r.stamps_cost} stamps</span>
                   </div>
                   <div className="muted small">
-                    {r.service_line ?? "any service"} · valid {r.validity_days} days
+                    {slName(r.service_line) ?? "any service"} · valid {r.validity_days} days
                   </div>
                   {r.description && <p className="reward-desc">{r.description}</p>}
                   <div className="reward-foot">

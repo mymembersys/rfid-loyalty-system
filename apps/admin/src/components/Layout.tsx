@@ -53,6 +53,7 @@ export function Layout() {
           <NavLink to="/rewards">Rewards</NavLink>
           <NavLink to="/stamp-rules">Stamp Rules</NavLink>
           <NavLink to="/reports">Reports</NavLink>
+          {user?.role === "admin" && <NavLink to="/service-lines">Service Lines</NavLink>}
           {user?.role === "admin" && <NavLink to="/users">Users</NavLink>}
           {user?.role === "admin" && <NavLink to="/settings">Settings</NavLink>}
         </nav>

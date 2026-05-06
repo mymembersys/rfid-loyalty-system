@@ -5,13 +5,20 @@ import { useBranding } from "../useBranding";
 
 type Branch = { id: string; name: string; service_line: ServiceLine };
 
+type ServiceLineRow = {
+  code: string;
+  name: string;
+  is_active: boolean;
+};
+
 export function TerminalSetup({ onSave }: { onSave: (c: TerminalConfig) => void }) {
   const [email, setEmail] = useState("frontdesk@example.com");
   const [password, setPassword] = useState("front123");
   const [token, setToken] = useState<string>("");
   const [branches, setBranches] = useState<Branch[]>([]);
+  const [serviceLines, setServiceLines] = useState<ServiceLineRow[]>([]);
   const [branchId, setBranchId] = useState("");
-  const [serviceLine, setServiceLine] = useState<ServiceLine>("gym");
+  const [serviceLine, setServiceLine] = useState<ServiceLine>("");
   const [err, setErr] = useState<string | null>(null);
   const [staffName, setStaffName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -19,13 +26,21 @@ export function TerminalSetup({ onSave }: { onSave: (c: TerminalConfig) => void 
 
   useEffect(() => {
     if (!token) return;
-    api<{ items: Branch[] }>("/branches", { token }).then(r => {
-      setBranches(r.items);
-      if (r.items[0]) {
-        setBranchId(r.items[0].id);
-        setServiceLine(r.items[0].service_line);
-      }
-    }).catch(e => setErr(e.message));
+    Promise.all([
+      api<{ items: Branch[] }>("/branches", { token }),
+      api<{ items: ServiceLineRow[] }>("/service-lines", { token }),
+    ])
+      .then(([b, s]) => {
+        setBranches(b.items);
+        setServiceLines(s.items);
+        if (b.items[0]) {
+          setBranchId(b.items[0].id);
+          // default to the branch's own service line if it's still active
+          const branchSl = s.items.find(x => x.code === b.items[0].service_line);
+          setServiceLine(branchSl?.code ?? s.items[0]?.code ?? "");
+        }
+      })
+      .catch(e => setErr(e.message));
   }, [token]);
 
   async function signIn(e: FormEvent) {
@@ -48,7 +63,7 @@ export function TerminalSetup({ onSave }: { onSave: (c: TerminalConfig) => void 
 
   function save() {
     const branch = branches.find(b => b.id === branchId);
-    if (!branch) return;
+    if (!branch || !serviceLine) return;
     onSave({
       branch_id: branch.id,
       branch_name: branch.name,
@@ -88,20 +103,24 @@ export function TerminalSetup({ onSave }: { onSave: (c: TerminalConfig) => void 
               <select value={branchId} onChange={e => {
                 setBranchId(e.target.value);
                 const b = branches.find(x => x.id === e.target.value);
-                if (b) setServiceLine(b.service_line);
+                if (b) {
+                  const branchSl = serviceLines.find(s => s.code === b.service_line);
+                  if (branchSl) setServiceLine(branchSl.code);
+                }
               }}>
                 {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </label>
             <label>Service line
-              <select value={serviceLine} onChange={e => setServiceLine(e.target.value as ServiceLine)}>
-                <option value="diagnostic">Diagnostic</option>
-                <option value="psychological">Psychological</option>
-                <option value="gym">Gym</option>
+              <select value={serviceLine} onChange={e => setServiceLine(e.target.value)}>
+                {serviceLines.length === 0 && <option value="">Loading…</option>}
+                {serviceLines.map(s => (
+                  <option key={s.code} value={s.code}>{s.name}</option>
+                ))}
               </select>
             </label>
             {err && <div className="err">{err}</div>}
-            <button onClick={save} disabled={!branchId}>Start terminal →</button>
+            <button onClick={save} disabled={!branchId || !serviceLine}>Start terminal →</button>
           </div>
         )}
       </div>

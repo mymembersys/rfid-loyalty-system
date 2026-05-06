@@ -647,6 +647,15 @@ input::placeholder { color: #9aa3b2; }
 .nfc-fallback li { margin: .15rem 0; }
 .text-danger { color: var(--danger); font-weight: 600; }
 
+/* service line color swatch */
+.sl-swatch {
+  display: inline-block;
+  width: 22px; height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, .08);
+  vertical-align: middle;
+}
+
 /* printable balance poster */
 .print-only { display: none; }
 .qr-poster {

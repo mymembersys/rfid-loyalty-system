@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../api/auth";
+import { useServiceLines } from "../hooks/useServiceLines";
 import { Modal } from "../components/Modal";
 
 type Reward = {
@@ -8,7 +9,7 @@ type Reward = {
   code: string;
   name: string;
   description: string | null;
-  service_line: "diagnostic" | "psychological" | "gym" | null;
+  service_line: string | null;
   stamps_cost: number;
   validity_days: number;
   per_member_limit: number | null;
@@ -50,6 +51,7 @@ function fromReward(r: Reward): FormState {
 export function Rewards() {
   const { token, user } = useAuth();
   const canEdit = user?.role === "admin" || user?.role === "manager";
+  const serviceLines = useServiceLines(token);
   const [items, setItems] = useState<Reward[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -181,7 +183,11 @@ export function Rewards() {
                   {r.name}
                   {r.description && <div className="muted small">{r.description}</div>}
                 </td>
-                <td>{r.service_line || <span className="muted">any</span>}</td>
+                <td>{
+                  r.service_line
+                    ? (serviceLines.find(s => s.code === r.service_line)?.name || r.service_line)
+                    : <span className="muted">any</span>
+                }</td>
                 <td><b>{r.stamps_cost}</b></td>
                 <td>{r.validity_days} days</td>
                 <td>{r.per_member_limit ?? <span className="muted">—</span>}</td>
@@ -236,9 +242,9 @@ export function Rewards() {
             <span>Service line</span>
             <select value={form.service_line} onChange={(e) => setField("service_line", e.target.value)}>
               <option value="">Any service</option>
-              <option value="diagnostic">Diagnostic</option>
-              <option value="psychological">Psychological</option>
-              <option value="gym">Gym</option>
+              {serviceLines.map(s => (
+                <option key={s.code} value={s.code}>{s.name}</option>
+              ))}
             </select>
           </label>
           <label className="field span-2">

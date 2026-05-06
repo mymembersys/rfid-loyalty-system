@@ -1,13 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../api/auth";
+import { useServiceLines } from "../hooks/useServiceLines";
 import { Modal } from "../components/Modal";
-
-type ServiceLine = "diagnostic" | "psychological" | "gym";
 
 type StampRule = {
   id: string;
-  service_line: ServiceLine;
+  service_line: string;
   branch_id: string | null;
   branch_name: string | null;
   stamps_required: number;
@@ -18,10 +17,10 @@ type StampRule = {
   is_active: boolean;
 };
 
-type Branch = { id: string; name: string; service_line: ServiceLine; };
+type Branch = { id: string; name: string; service_line: string; };
 
 type FormState = {
-  service_line: ServiceLine;
+  service_line: string;
   branch_id: string;          // "" = network default
   stamps_required: string;
   cooldown_minutes: string;
@@ -31,7 +30,7 @@ type FormState = {
 };
 
 const emptyForm: FormState = {
-  service_line: "gym",
+  service_line: "",
   branch_id: "",
   stamps_required: "10",
   cooldown_minutes: "720",
@@ -69,10 +68,13 @@ function describeCooldown(min: number): string {
 
 export function StampRules() {
   const { token, user } = useAuth();
-  const canEdit = user?.role === "admin";
+  const canEdit = user?.role === "admin" || user?.role === "manager";
+  const serviceLines = useServiceLines(token);
   const [items, setItems] = useState<StampRule[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
-  const [showInactive, setShowInactive] = useState(false);
+  // Stamp rules are configuration: admins want to see *all* of them at a
+  // glance, with status badges making active vs inactive obvious.
+  const [showInactive, setShowInactive] = useState(true);
   const [loading, setLoading] = useState(false);
 
   const [editing, setEditing] = useState<StampRule | "new" | null>(null);
@@ -96,7 +98,7 @@ export function StampRules() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
   function openNew() {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, service_line: serviceLines[0]?.code ?? "" });
     setErr(null);
     setEditing("new");
   }
@@ -201,7 +203,7 @@ export function StampRules() {
           <tbody>
             {items.map(r => (
               <tr key={r.id} className={r.is_active ? undefined : "row-voided"}>
-                <td><b>{r.service_line}</b></td>
+                <td><b>{serviceLines.find(s => s.code === r.service_line)?.name || r.service_line}</b></td>
                 <td>
                   {r.branch_id
                     ? (r.branch_name ?? branchById[r.branch_id]?.name ?? "—")
@@ -253,10 +255,11 @@ export function StampRules() {
         <form id="rule-form" onSubmit={submit} className="form-grid">
           <label className="field">
             <span>Service line *</span>
-            <select value={form.service_line} onChange={(e) => setField("service_line", e.target.value as ServiceLine)}>
-              <option value="diagnostic">Diagnostic</option>
-              <option value="psychological">Psychological</option>
-              <option value="gym">Gym</option>
+            <select value={form.service_line} onChange={(e) => setField("service_line", e.target.value)}>
+              {serviceLines.length === 0 && <option value="">Loading…</option>}
+              {serviceLines.map(s => (
+                <option key={s.code} value={s.code}>{s.name}</option>
+              ))}
             </select>
           </label>
           <label className="field">

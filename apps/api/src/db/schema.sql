@@ -26,6 +26,27 @@ DO $$ BEGIN
   CREATE TYPE redemption_status AS ENUM ('pending', 'redeemed', 'expired', 'voided');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
+-- ----------- service line metadata (display name, color, ordering) -----------
+-- The `service_line` enum stays as the FK type for branches/visits/rewards/stamp_rules;
+-- this table just adds editable presentation fields for each code so operators can
+-- rename and re-color them from the admin portal.
+CREATE TABLE IF NOT EXISTS service_lines (
+  code         service_line PRIMARY KEY,
+  name         TEXT NOT NULL,
+  description  TEXT,
+  color        TEXT NOT NULL DEFAULT '#3b5bdb',
+  sort_order   INT  NOT NULL DEFAULT 0,
+  is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+INSERT INTO service_lines (code, name, sort_order) VALUES
+  ('diagnostic',    'Diagnostic',    0),
+  ('psychological', 'Psychological', 1),
+  ('gym',           'Gym',           2)
+ON CONFLICT (code) DO NOTHING;
+
 -- ----------- branches -----------
 CREATE TABLE IF NOT EXISTS branches (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

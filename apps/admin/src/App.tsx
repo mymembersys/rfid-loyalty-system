@@ -10,6 +10,7 @@ import { StampRules } from "./pages/StampRules";
 import { Reports } from "./pages/Reports";
 import { Users } from "./pages/Users";
 import { Settings } from "./pages/Settings";
+import { ServiceLines } from "./pages/ServiceLines";
 import { useAuth } from "./api/auth";
 
 export function App() {
@@ -28,6 +29,7 @@ export function App() {
         <Route path="/reports" element={<Reports />} />
         <Route path="/users" element={<Users />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/service-lines" element={<ServiceLines />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

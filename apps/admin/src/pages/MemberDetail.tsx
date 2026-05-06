@@ -6,6 +6,7 @@ import { useAuth } from "../api/auth";
 import { Modal } from "../components/Modal";
 import { BalanceQR } from "../components/BalanceQR";
 import { NfcWriter } from "../components/NfcWriter";
+import { useServiceLines } from "../hooks/useServiceLines";
 
 type Member = {
   id: string; member_no: string; first_name: string; last_name: string;
@@ -62,6 +63,9 @@ export function MemberDetail() {
   const { id = "" } = useParams();
   const { token, user } = useAuth();
   const canManage = user?.role === "admin" || user?.role === "manager";
+  const serviceLines = useServiceLines(token);
+  const slName = (code: string | null | undefined) =>
+    code ? (serviceLines.find(s => s.code === code)?.name ?? code) : "";
   const [member, setMember] = useState<Member | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [balances, setBalances] = useState<Balance[]>([]);
@@ -403,7 +407,7 @@ export function MemberDetail() {
             <div className="balance-row">
               {balances.map(b => (
                 <div key={b.service_line} className="balance-card">
-                  <h4>{b.service_line}</h4>
+                  <h4>{slName(b.service_line)}</h4>
                   <p className="big">{b.stamps_balance}</p>
                   <small className="muted">{b.stamps_earned} earned · {b.stamps_spent} spent</small>
                 </div>
@@ -465,7 +469,7 @@ export function MemberDetail() {
                 <tr key={v.id} className={v.is_voided ? "row-voided" : undefined}>
                   <td>{new Date(v.visited_at).toLocaleString()}</td>
                   <td>{v.branch_name}</td>
-                  <td>{v.service_line}</td>
+                  <td>{slName(v.service_line)}</td>
                   <td>{v.sub_service || <span className="muted">—</span>}</td>
                   <td>{v.stamps_awarded}</td>
                   <td>

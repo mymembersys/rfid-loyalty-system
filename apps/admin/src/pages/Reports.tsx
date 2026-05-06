@@ -6,12 +6,13 @@ import {
 import * as XLSX from "xlsx";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../api/auth";
+import { useServiceLines } from "../hooks/useServiceLines";
 
 type DailyRow = {
   day: string;
   branch_id: string;
   branch_name: string | null;
-  service_line: "diagnostic" | "psychological" | "gym";
+  service_line: string;
   visits: number | string;
 };
 
@@ -89,6 +90,9 @@ function buildQuery(f: Filters, extra: Record<string, string | undefined> = {}):
 
 export function Reports() {
   const { token } = useAuth();
+  const serviceLines = useServiceLines(token);
+  const slName = (code: string | null | undefined) =>
+    code ? (serviceLines.find(s => s.code === code)?.name ?? code) : "";
   const [filters, setFilters] = useState<Filters>({
     from: daysAgoISO(30),
     to: todayISO(),
@@ -258,7 +262,7 @@ export function Reports() {
             <select value={filters.branch_id} onChange={(e) => setField("branch_id", e.target.value)}>
               <option value="">All branches</option>
               {branches.map(b => (
-                <option key={b.id} value={b.id}>{b.name} ({b.service_line})</option>
+                <option key={b.id} value={b.id}>{b.name} ({slName(b.service_line)})</option>
               ))}
             </select>
           </label>
@@ -314,7 +318,7 @@ export function Reports() {
               <tr key={i}>
                 <td>{fmt(r.day)}</td>
                 <td>{r.branch_name || <span className="muted mono">{r.branch_id.slice(0, 8)}…</span>}</td>
-                <td>{r.service_line}</td>
+                <td>{slName(r.service_line)}</td>
                 <td><b>{r.visits}</b></td>
               </tr>
             ))}
@@ -357,7 +361,7 @@ export function Reports() {
           <h2>Pending vouchers</h2>
           <small className="muted">{pending.length} outstanding</small>
         </div>
-        <VoucherTable items={pending} variant="pending" />
+        <VoucherTable items={pending} variant="pending" slName={slName} />
       </section>
 
       <section className="panel">
@@ -365,7 +369,7 @@ export function Reports() {
           <h2>Redeemed vouchers</h2>
           <small className="muted">{redeemed.length} in window</small>
         </div>
-        <VoucherTable items={redeemed} variant="redeemed" />
+        <VoucherTable items={redeemed} variant="redeemed" slName={slName} />
       </section>
     </div>
   );
@@ -373,7 +377,15 @@ export function Reports() {
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
-function VoucherTable({ items, variant }: { items: Voucher[]; variant: "pending" | "redeemed" }) {
+function VoucherTable({
+  items,
+  variant,
+  slName,
+}: {
+  items: Voucher[];
+  variant: "pending" | "redeemed";
+  slName: (code: string | null | undefined) => string;
+}) {
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState<number>(1);
 
@@ -413,7 +425,7 @@ function VoucherTable({ items, variant }: { items: Voucher[]; variant: "pending"
               <td className="mono">{v.voucher_code}</td>
               <td>
                 {v.reward_name}
-                <div className="muted small mono">{v.reward_code}{v.reward_service_line ? ` · ${v.reward_service_line}` : ""}</div>
+                <div className="muted small mono">{v.reward_code}{v.reward_service_line ? ` · ${slName(v.reward_service_line)}` : ""}</div>
               </td>
               <td>
                 <Link to={`/members/${v.member_id}`} className="link">{v.first_name} {v.last_name}</Link>

@@ -60,8 +60,13 @@ balanceRoutes.get("/:token", async (req, res, next) => {
     if (!m.rows[0]) throw new HttpError(404, "Member not found");
 
     const b = await query(
-      `SELECT service_line, stamps_earned, stamps_spent, stamps_balance
-       FROM member_stamp_balance WHERE member_id = $1`,
+      `SELECT bal.service_line,
+              COALESCE(sl.name, bal.service_line::text) AS service_line_name,
+              COALESCE(sl.color, '#3b5bdb')             AS service_line_color,
+              bal.stamps_earned, bal.stamps_spent, bal.stamps_balance
+       FROM member_stamp_balance bal
+       LEFT JOIN service_lines sl ON sl.code = bal.service_line
+       WHERE bal.member_id = $1`,
       [mid]
     );
 

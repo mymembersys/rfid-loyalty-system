@@ -1,4 +1,6 @@
-export type ServiceLine = "diagnostic" | "psychological" | "gym";
+// Service-line codes are now dynamic (managed from the admin Service Lines
+// page); we keep the alias for documentation but treat it as plain string.
+export type ServiceLine = string;
 
 export type TerminalConfig = {
   branch_id: string;

@@ -4,6 +4,7 @@ import { query } from "../db/client";
 import { recordAudit } from "../db/audit";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { HttpError } from "../middleware/error";
+import { assertActiveServiceLine } from "../lib/serviceLineCheck";
 
 export const branchRoutes = Router();
 branchRoutes.use(requireAuth);
@@ -20,7 +21,7 @@ branchRoutes.get("/", async (req, res, next) => {
 const createSchema = z.object({
   code: z.string().min(2),
   name: z.string().min(1),
-  service_line: z.enum(["diagnostic", "psychological", "gym"]),
+  service_line: z.string().min(2),
   address: z.string().optional(),
   phone: z.string().optional(),
 });
@@ -28,6 +29,7 @@ const createSchema = z.object({
 branchRoutes.post("/", requireRole("admin"), async (req, res, next) => {
   try {
     const b = createSchema.parse(req.body);
+    await assertActiveServiceLine(b.service_line);
     const r = await query(
       `INSERT INTO branches (code, name, service_line, address, phone)
        VALUES ($1,$2,$3,$4,$5) RETURNING *`,
@@ -48,7 +50,7 @@ branchRoutes.post("/", requireRole("admin"), async (req, res, next) => {
 const updateSchema = z.object({
   code: z.string().min(2).optional(),
   name: z.string().min(1).optional(),
-  service_line: z.enum(["diagnostic", "psychological", "gym"]).optional(),
+  service_line: z.string().min(2).optional(),
   address: z.string().nullable().optional(),
   phone: z.string().nullable().optional(),
   is_active: z.boolean().optional(),
@@ -57,6 +59,7 @@ const updateSchema = z.object({
 branchRoutes.patch("/:id", requireRole("admin"), async (req, res, next) => {
   try {
     const b = updateSchema.parse(req.body);
+    if (b.service_line) await assertActiveServiceLine(b.service_line);
     const fields = Object.keys(b) as (keyof typeof b)[];
     if (fields.length === 0) {
       const r = await query(`SELECT * FROM branches WHERE id = $1`, [req.params.id]);

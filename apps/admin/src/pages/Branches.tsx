@@ -1,20 +1,19 @@
 import { FormEvent, useEffect, useState } from "react";
 import { apiFetch } from "../api/client";
 import { useAuth } from "../api/auth";
+import { useServiceLines } from "../hooks/useServiceLines";
 import { Modal } from "../components/Modal";
-
-type ServiceLine = "diagnostic" | "psychological" | "gym";
 
 type Branch = {
   id: string; code: string; name: string;
-  service_line: ServiceLine; address: string | null; phone: string | null;
+  service_line: string; address: string | null; phone: string | null;
   is_active: boolean;
 };
 
 type FormState = {
   code: string;
   name: string;
-  service_line: ServiceLine;
+  service_line: string;
   address: string;
   phone: string;
 };
@@ -22,7 +21,7 @@ type FormState = {
 const emptyForm: FormState = {
   code: "",
   name: "",
-  service_line: "gym",
+  service_line: "",
   address: "",
   phone: "",
 };
@@ -40,6 +39,7 @@ function fromBranch(b: Branch): FormState {
 export function Branches() {
   const { token, user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const serviceLines = useServiceLines(token);
   const [items, setItems] = useState<Branch[]>([]);
   const [showInactive, setShowInactive] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,7 @@ export function Branches() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
   function openNew() {
-    setForm(emptyForm);
+    setForm({ ...emptyForm, service_line: serviceLines[0]?.code ?? "" });
     setErr(null);
     setEditing("new");
   }
@@ -171,7 +171,17 @@ export function Branches() {
               <tr key={b.id} className={b.is_active ? undefined : "row-voided"}>
                 <td className="mono">{b.code}</td>
                 <td>{b.name}</td>
-                <td><span className="badge badge-active">{b.service_line}</span></td>
+                <td>
+                  <span
+                    className="badge"
+                    style={{
+                      background: serviceLines.find(s => s.code === b.service_line)?.color || "var(--primary-50)",
+                      color: "#fff",
+                    }}
+                  >
+                    {serviceLines.find(s => s.code === b.service_line)?.name || b.service_line}
+                  </span>
+                </td>
                 <td>{b.address || <span className="muted">—</span>}</td>
                 <td>{b.phone || <span className="muted">—</span>}</td>
                 <td>
@@ -229,10 +239,11 @@ export function Branches() {
           </label>
           <label className="field">
             <span>Service line *</span>
-            <select value={form.service_line} onChange={(e) => setField("service_line", e.target.value as ServiceLine)}>
-              <option value="diagnostic">Diagnostic</option>
-              <option value="psychological">Psychological</option>
-              <option value="gym">Gym</option>
+            <select value={form.service_line} onChange={(e) => setField("service_line", e.target.value)}>
+              {serviceLines.length === 0 && <option value="">Loading…</option>}
+              {serviceLines.map(s => (
+                <option key={s.code} value={s.code}>{s.name}</option>
+              ))}
             </select>
           </label>
           <label className="field span-2">

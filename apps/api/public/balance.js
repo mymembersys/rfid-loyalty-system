@@ -59,9 +59,10 @@
       balances.forEach(function (b) {
         var el = document.createElement("div");
         el.className = "bal";
+        var label = b.service_line_name || b.service_line;
         el.innerHTML =
           '<div>' +
-            '<div class="name">' + escapeText(b.service_line) + '</div>' +
+            '<div class="name">' + escapeText(label) + '</div>' +
             '<div class="sub">' + escapeText(String(b.stamps_earned)) + ' earned · ' +
                                    escapeText(String(b.stamps_spent)) + ' spent</div>' +
           '</div>' +

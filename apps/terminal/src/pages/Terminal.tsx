@@ -4,12 +4,15 @@ import { Redeem } from "./Redeem";
 import { VoucherRedeem } from "./VoucherRedeem";
 import { TerminalConfig } from "../types";
 import { useBranding } from "../useBranding";
+import { useServiceLines } from "../useServiceLines";
 
 type Mode = "checkin" | "redeem" | "voucher";
 
 export function Terminal({ config, onReset }: { config: TerminalConfig; onReset: () => void }) {
   const [mode, setMode] = useState<Mode>("checkin");
   const brand = useBranding();
+  const serviceLines = useServiceLines(config.staff_token);
+  const sl = serviceLines.find(s => s.code === config.service_line);
 
   return (
     <div className="terminal">
@@ -21,7 +24,12 @@ export function Terminal({ config, onReset }: { config: TerminalConfig; onReset:
           <strong>{brand.brand_name}</strong>
           <span className="muted small">·</span>
           <strong>{config.branch_name}</strong>
-          <span className="tag">{config.service_line}</span>
+          <span
+            className="tag"
+            style={sl ? { background: `color-mix(in srgb, ${sl.color} 30%, transparent)`, color: "#fff", borderColor: `color-mix(in srgb, ${sl.color} 50%, transparent)` } : undefined}
+          >
+            {sl?.name ?? config.service_line}
+          </span>
         </div>
         <div className="mode-tabs">
           <button

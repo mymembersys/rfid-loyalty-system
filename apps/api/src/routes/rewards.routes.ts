@@ -3,6 +3,7 @@ import { z } from "zod";
 import { query } from "../db/client";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { HttpError } from "../middleware/error";
+import { assertActiveServiceLineOrAny } from "../lib/serviceLineCheck";
 
 export const rewardRoutes = Router();
 rewardRoutes.use(requireAuth);
@@ -20,7 +21,7 @@ const upsertSchema = z.object({
   code: z.string().min(2),
   name: z.string().min(1),
   description: z.string().nullable().optional(),
-  service_line: z.enum(["diagnostic", "psychological", "gym"]).nullable().optional(),
+  service_line: z.string().min(2).nullable().optional(),
   stamps_cost: z.number().int().positive(),
   validity_days: z.number().int().positive().default(30),
   per_member_limit: z.number().int().positive().nullable().optional(),
@@ -33,6 +34,7 @@ const updateSchema = upsertSchema.partial().extend({
 rewardRoutes.post("/", requireRole("admin", "manager"), async (req, res, next) => {
   try {
     const b = upsertSchema.parse(req.body);
+    await assertActiveServiceLineOrAny(b.service_line ?? null);
     const r = await query(
       `INSERT INTO rewards (code, name, description, service_line, stamps_cost, validity_days, per_member_limit)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
@@ -45,6 +47,7 @@ rewardRoutes.post("/", requireRole("admin", "manager"), async (req, res, next) =
 rewardRoutes.patch("/:id", requireRole("admin", "manager"), async (req, res, next) => {
   try {
     const b = updateSchema.parse(req.body);
+    if (b.service_line !== undefined) await assertActiveServiceLineOrAny(b.service_line);
     const fields = Object.keys(b) as (keyof typeof b)[];
     if (fields.length === 0) {
       const r = await query(`SELECT * FROM rewards WHERE id = $1`, [req.params.id]);
