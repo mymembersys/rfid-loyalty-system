@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
-import { pool, query } from "../db/client";
+import { query } from "../db/client";
 import { recordAudit } from "../db/audit";
 import { requireAuth, requireRole } from "../middleware/auth";
 import { HttpError } from "../middleware/error";
@@ -15,20 +15,30 @@ const redeemSchema = z.object({
   branch_id: z.string().uuid(),
 });
 
+/**
+ * Create a voucher for a reward.
+ *
+ * NOTE: This used to wrap balance/limit checks + insert in a single transaction
+ * via `pool.connect()` + BEGIN/COMMIT. That pattern hangs on Vercel serverless
+ * pointed at Supabase's transaction-mode pooler (port 6543) — `pool.connect()`
+ * blocks under `max: 1`. We now run each step as an ordinary query(), which
+ * trades hard atomicity for liveness. The race window (two simultaneous
+ * redemptions both seeing enough stamps) is acceptable for a single-customer
+ * kiosk flow; if we ever need true atomicity we can switch to a single
+ * INSERT … SELECT WHERE … guarded by the balance check.
+ */
 redemptionRoutes.post("/", requireRole("admin", "manager", "frontdesk"), async (req, res, next) => {
-  const client = await pool.connect();
   try {
     const b = redeemSchema.parse(req.body);
-    await client.query("BEGIN");
 
-    const rewardR = await client.query(
+    const rewardR = await query(
       `SELECT * FROM rewards WHERE id = $1 AND is_active = TRUE`, [b.reward_id]
     );
     const reward = rewardR.rows[0];
     if (!reward) throw new HttpError(404, "Reward not found or inactive");
 
     // Check balance for the relevant service_line (or any)
-    const balR = await client.query(
+    const balR = await query(
       `SELECT COALESCE(SUM(stamps_balance), 0) AS bal
        FROM member_stamp_balance
        WHERE member_id = $1 AND ($2::service_line IS NULL OR service_line = $2)`,
@@ -41,7 +51,7 @@ redemptionRoutes.post("/", requireRole("admin", "manager", "frontdesk"), async (
 
     // Per-member limit
     if (reward.per_member_limit) {
-      const usedR = await client.query(
+      const usedR = await query(
         `SELECT COUNT(*)::int AS c FROM redemptions WHERE member_id = $1 AND reward_id = $2 AND status IN ('pending','redeemed')`,
         [b.member_id, b.reward_id]
       );
@@ -53,13 +63,12 @@ redemptionRoutes.post("/", requireRole("admin", "manager", "frontdesk"), async (
     const voucher = `V-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
     const expiresAt = new Date(Date.now() + reward.validity_days * 86400_000).toISOString();
 
-    const insR = await client.query(
+    const insR = await query(
       `INSERT INTO redemptions (member_id, reward_id, stamps_used, branch_id, staff_user_id, voucher_code, status, expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,'pending',$7) RETURNING *`,
       [b.member_id, b.reward_id, reward.stamps_cost, b.branch_id, req.auth?.sub ?? null, voucher, expiresAt]
     );
 
-    await client.query("COMMIT");
     const created = insR.rows[0];
     await recordAudit(req, {
       action: "redemption.create",
@@ -76,10 +85,7 @@ redemptionRoutes.post("/", requireRole("admin", "manager", "frontdesk"), async (
     });
     res.status(201).json(created);
   } catch (err) {
-    await client.query("ROLLBACK").catch(() => {});
     next(err);
-  } finally {
-    client.release();
   }
 });
 
